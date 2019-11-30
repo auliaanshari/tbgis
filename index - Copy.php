@@ -212,7 +212,7 @@
                 var directionsService;
                 var directionDisplay;
                 var usegeolocation;
-                var server='http://'+window.location.hostname+'/photocopy/';
+                var server='http://localhost/photocopy/';
                 var markerarraygeo=[];
                 var circlearray=[];
                 var layernya;

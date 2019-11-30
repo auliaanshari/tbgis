@@ -213,6 +213,7 @@
                 var directionDisplay;
                 var usegeolocation;
                 var server='http://'+window.location.hostname+'/photocopy/';
+                console.log(window.location.hostname);
                 var markerarraygeo=[];
                 var circlearray=[];
                 var layernya;

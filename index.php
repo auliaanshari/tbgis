@@ -212,7 +212,7 @@
                 var directionsService;
                 var directionDisplay;
                 var usegeolocation;
-                var server='http://tbgis.herokuapp.com/photocopy/';
+                var server='https://tbgis.herokuapp.com/';
                 console.log(window.location.hostname);
                 var markerarraygeo=[];
                 var circlearray=[];

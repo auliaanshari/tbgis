@@ -243,7 +243,7 @@
                 var directionDisplay;
                 var usegeolocation;
                 var usegetd;
-                var server='https://tbgis.herokuapp/';
+                var server='https://tbgis.herokuapp.com/';
                 console.log(window.location.hostname);
                 var markerarraygeo=[];
                 var circlearray=[];

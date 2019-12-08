@@ -91,8 +91,8 @@
     					<b>Aulia Anshari Fathurrahman<br><br>1611522015</b>
     					<b>Annisa Atifa<br><br>1811522004</b>
     					<b>Fadhlullah Ahmad<br><br>1811522009</b>
-                        <b>Rifa Maulina<br><br>1811522012</b>
-                        <b>Ahmad Fauzan<br><br>1811522017</b>
+              <b>Rifa Maulina<br><br>1811522012</b>
+              <b>Ahmad Fauzan<br><br>1811522017</b>
     				</span>
     			</h3>
     		</div>
@@ -127,7 +127,7 @@
 
         <div id="about" class="section wb" style="padding: 50px 0">
             <div class="container" style="font-family: 'ink free';font-size: 16px ">
-                <div class="row">
+                    <div class="row">
                     <div class="col-md-4">
                         <div style="max-height: 500px;overflow: auto;">
                             <table class="table table-bordered" id="list">
@@ -177,8 +177,35 @@
                     </div><!-- end col -->
 
                     <div class="col-md-8">
+                    <a class="btn btn-danger" role="button" onclick="geolocation()" title="Geolokasi"><i class="fa fa-search-location" style="color:black;"></i></a>
+                    <a class="btn btn-danger" role="button" onclick="manualLocation()" title="Posisi Manual"><i class="fa fa-map-pin" style="color:black;"></i></a>
+                    <a class="btn btn-danger" role="button" onclick='<?php
+                                          require("config.php");
+                                          // $caritext = $row['id'];
+                                          $querysearch="SELECT row_to_json(fc) FROM ( SELECT 'FeatureCollection' As type, array_to_json(array_agg(f)) As features FROM (SELECT 'Feature' As type , ST_AsGeoJSON(loc.geom)::json As geometry , row_to_json((SELECT l FROM (SELECT gid, id, nama, pemilik, fasilitas, buka_tutup, no_hp , alamat, gambar, row_to_json((SELECT k FROM (SELECT ST_X(ST_CENTROID(geom)) AS lng, ST_Y(ST_CENTROID(geom)) AS lat) AS k)) AS center) As l )) As properties FROM atribut As loc ) As f ) As fc"; 
+
+                                          $hasil=pg_query($querysearch);
+                                            while($data=pg_fetch_array($hasil))
+                                            {
+                                              $load=$data['row_to_json'];
+                                              $tulis="loaddata(".$load.");";
+                                            }
+                                            
+                                            echo $tulis;
+                                            
+                                          ?>' title="Tampil Semua Fotokopi"><i class="fa fa-map-marked-alt" style="color:black;"></i></a>
+                    <a class="btn btn-danger" role="button" data-toggle="collapse" href="#terdekat" title="Disekitar" aria-controls="terdekat"><i class="fa fa-circle-notch" style="color:black;"></i></a>
+                    <div class="collapse" id="terdekat">
+                    <div class="well">
+                    <label><b>Radius&nbsp</b></label><label style="color:black" id="km"><b>0</b></label>&nbsp<label><b>m</b></label><br>
+                    <input  type="range" onclick="cek();aktifkanRadius()" id="inputradiuss" name="inputradiuss" data-highlight="true" min="0" max="20" value="0" >
+                    </div>
+                    </div>
                         <div id="map_canvas" style="width: 100%;height: 500px;align-items: center;">
 
+                        </div>
+                        <div id="paneldirection">
+                          
                         </div>
                     </div><!-- end col -->
                 </div><!-- end row -->
@@ -205,17 +232,26 @@
         <!-- Script Map -->
         <script type="text/javascript">
                 var infowindow;
+                var infoDua;
                 var geomarker;
                 var markerarray = [];
-                var map;
+                var map;var pos, rad;
+                var centerBaru;
+                var centerLokasi;
                 var objek;
                 var directionsService;
                 var directionDisplay;
                 var usegeolocation;
+                var usegetd;
                 var server='http://localhost/photocopy/';
+                console.log(window.location.hostname);
                 var markerarraygeo=[];
                 var circlearray=[];
                 var layernya;
+                var circles=[];
+                var markers=[];
+                var markersDua=[];
+                var cekRadiusStatus;
           
                 function initialize() {
                       geolocation();
@@ -238,6 +274,13 @@
           
                   }
                 function load(id,travelMode){
+                    if (usegetd==true) {
+                      clearroute();
+                      usegetd=false;
+                    }
+                    hapusRadius();
+                    hapusMarkerTerdekat();
+                    clearmarker();
                     $.ajax({
                         url:server+'caripeta.php?id='+id,
                         data: '',
@@ -250,8 +293,9 @@
                                 var end = new google.maps.LatLng(lat, lng);
                                 var origin = geomarker.getPosition();
                                 calcRoute(origin, end, travelMode);
-                                console.log(origin);
-                                console.log(end);
+                                $('#paneldirection').html('');
+                                usegetd=true;
+                                console.log(lng);
                                 console.log(server+'caripeta.php?id='+id);
                             }
                         }
@@ -259,12 +303,18 @@
                 }
 
                 function loaddata(results){
+                  if (usegetd==true) {
+                      clearroute();
+                      usegetd=false;
+                    }
+                    hapusRadius();
+                    hapusMarkerTerdekat();
+                    clearmarker();
                       if(results.features === null)
                            {
                                alert("Data yang dicari tidak ada");
                            }
                            else
-
                            {
                               for (var i = 0; i < results.features.length; i++) {
                                   
@@ -281,35 +331,35 @@
                                   var longitude = titiktengah.lng;
                                   var no_hp = data.properties.no_hp;
                                   var latLng = new google.maps.LatLng(latitude,longitude);
- 
-                                  google.maps.visualRefresh = true;
-                                  map = new google.maps.Map(document.getElementById('map_canvas'), {
-                                        zoom: 16,
-                                        center: new google.maps.LatLng(latitude, longitude),
-                                        mapTypeId: google.maps.MapTypeId.ROADMAP
-                                  });
-                                  loadLayer();
-
                                   var gambar=data.properties.gambar; 
-                                  
-                                  $('.paneldirection').html('');
-                                  $('#sidebar_route').html('');
-                                  $('#sidebar_route').append('<li><a id="'+id+'" class="bgd_drv" >Driving</a></li>'+
-                                    '<li><a id="'+id+'" class="bgd_wlk" >Walking</a></li>'+
-                                    '<li><a id="'+id+'" class="bgd_cyc" >Cycling</a></li>'+
-                                    '<li><a id="'+id+'" class="bgd_trn" >Transit</a></li>');
+
+ 
+                                  // google.maps.visualRefresh = true;
+                                  // map = new google.maps.Map(document.getElementById('map_canvas'), {
+                                  //       zoom: 16,
+                                  //       center: new google.maps.LatLng(latitude, longitude),
+                                  //       mapTypeId: google.maps.MapTypeId.ROADMAP
+                                  // });
+                                  // loadLayer();
+
+                                  // $('#paneldirection').html('');
+                                  // $('#sidebar_route').html('');
+                                  // $('#sidebar_route').append('<li><a id="'+id+'" class="bgd_drv" >Driving</a></li>'+
+                                  //   '<li><a id="'+id+'" class="bgd_wlk" >Walking</a></li>'+
+                                  //   '<li><a id="'+id+'" class="bgd_cyc" >Cycling</a></li>'+
+                                  //   '<li><a id="'+id+'" class="bgd_trn" >Transit</a></li>');
  
                                   var iconBase = 'https://maps.google.com/mapfiles/kml/shapes/';
                                   var marker = new google.maps.Marker({
                                       position: latLng,
                                       map: map,
                                       animation: google.maps.Animation.DROP,            
-                                      icon: "https://cdn0.iconfinder.com/data/icons/small-n-flat/24/678111-map-marker-32.png",
+                                      // icon: "https://cdn0.iconfinder.com/data/icons/small-n-flat/24/678111-map-marker-32.png",
                                       title: nama
                                     });
-          
+                                  map.panTo(latLng);
                                   markerarray.push(marker);
-                                  var isiinfo="<div style='width:300px; min-height:100px;'><b><h2><center>"+nama+"</center></h2></b><center><img src='"+server+"/img/"+gambar+"' style='width:100%;'></center><br><center><p>"+alamat+"</p></center><center><p>Jam Operasional :"+buka_tutup+"</p></center><center><p>Contact Person : "+no_hp+"</p></center></div>";
+                                  var isiinfo="<div style='width:300px; min-height:100px;'><b><h2><center>"+nama+"</center></h2></b><center><img src='"+server+"img/"+gambar+"' style='width:100%;'></center><br><center><p>"+alamat+"</p></center><center><p>Jam Operasional :"+buka_tutup+"</p></center><center><p>Contact Person : "+no_hp+"</p></center></div>";
                                   createInfoWindow(marker, isiinfo);
                                 }
                             }
@@ -327,7 +377,6 @@
           
                 function calcRoute(start, end, travelmode) {
                     directionsService = new google.maps.DirectionsService();
-                    console.log(travelmode);
                     var request = {
                            origin:start,
                            destination:end,
@@ -363,23 +412,32 @@
           
                 function clearroute(){
                     directionsDisplay.setMap(null);
+                    $('#paneldirection').html('');
                   }
           
           
                 function geolocation(){
+                  hapusMarkerTerdekat();
+                  hapusRadius();
+                  clearmarker();
+                  clearmarkergeo();
+                  if(usegetd==true){
+                    clearroute();  
+                  }
                     navigator.geolocation.getCurrentPosition(geolocationSuccess, geolocationError);
                   }
           
                 function geolocationSuccess(posisi){
-                    var pos=new google.maps.LatLng(posisi.coords.latitude,posisi.coords.longitude);
+                    pos=new google.maps.LatLng(posisi.coords.latitude,posisi.coords.longitude);
                     var image = 'https://developers.google.com/maps/documentation/javascript/examples/full/images/beachflag.png';
                     geomarker = new google.maps.Marker({
                           map: map,
                           position: pos,
-                          icon: "https://cdn1.iconfinder.com/data/icons/ui-navigation-1/152/marker-32.png",
+                          // icon: "https://cdn1.iconfinder.com/data/icons/ui-navigation-1/152/marker-32.png",
                           animation: google.maps.Animation.DROP
                       });
                     map.panTo(pos);
+                    markerarraygeo.push(geomarker);
                     infowindow = new google.maps.InfoWindow();
                     infowindow.setContent('Your Position');
                     infowindow.open(map, geomarker);
@@ -390,8 +448,191 @@
                     usegeolocation=false;
           
                   }
-          
-            </script>
+
+                function manualLocation(){ //posisi manual
+                hapusRadius();
+                hapusMarkerTerdekat();
+                alert('Click the map');
+                map.addListener('click', function(event) {
+                  clearmarkergeo();
+                  clearmarker();
+                  if(usegetd==true){
+                    clearroute();  
+                  }
+                  addMarker(event.latLng);
+                  });
+                }
+
+                
+                function addMarker(location){
+                geomarker = new google.maps.Marker({
+                  position : location,
+                  map: map,
+                  // icon: "https://cdn1.iconfinder.com/data/icons/ui-navigation-1/152/marker-32.png",
+                  animation: google.maps.Animation.DROP,
+                  });
+                pos = {
+                  lat: location.lat(), lng: location.lng()
+                }
+                markerarraygeo.push(geomarker);
+                infowindow = new google.maps.InfoWindow();
+                infowindow.setContent('Current Position');
+                infowindow.open(map, geomarker);
+                usegeolocation=true;
+                google.maps.event.clearListeners(map, 'click');
+                console.log(pos);
+
+                }
+
+                function hapusRadius(){
+                for(var i=0;i<circles.length;i++)
+                             {
+                                 circles[i].setMap(null);
+                             }
+                  circles=[];
+                cekRadiusStatus = 'off';
+                }
+
+                function hapusMarkerTerdekat() {
+                for (var i = 0; i < markersDua.length; i++) {
+                markersDua[i].setMap(null);
+                  }
+                }
+
+                function aktifkanRadius(){ //fungsi radius 
+                clearmarker();
+                clearmarker();
+                hapusMarkerTerdekat();
+                if(usegetd==true){
+                    clearroute();  
+                  };
+                if (pos == 'null'){
+                alert ('Click button current position or manual position first !');
+                }
+                else {
+                hapusRadius();
+                var inputradius=document.getElementById("inputradiuss").value;
+              console.log(inputradius);
+              console.log(pos);
+              rad = parseFloat(inputradius*100);
+                var circle = new google.maps.Circle({
+                  center: pos,
+                  radius: parseFloat(inputradius*100),
+                  map: map,
+                  strokeColor: "blue",
+                  strokeOpacity: 0.8,
+                  strokeWeight: 2,
+                  fillColor: "blue",
+                  fillOpacity: 0.35
+                  });
+                  map.setZoom(14);
+                  map.setCenter(pos);
+                  circles.push(circle);
+                }
+                cekRadiusStatus = 'on';
+                 radiuspeta();
+                }
+                function cek()
+                {
+                 document.getElementById('km').innerHTML=document.getElementById('inputradiuss').value*100
+                }
+
+                function radiuspeta(){ //menampilkan masjid berdasarkan radius
+                  hapusMarkerTerdekat();
+                  clearmarker();
+                if(usegetd==true){
+                    clearroute();  
+                  };
+
+                  console.log(server+'radiuspeta.php?lat='+pos.lat+'&lng='+pos.lng+'&rad='+rad);
+                $.ajax({
+                url: server+'radiuspeta.php?lat='+pos.lat+'&lng='+pos.lng+'&rad='+rad, data: "", dataType: 'json', success: function(rows)
+                {
+                    console.log("hy");
+                    for (var i in rows)
+                    {
+                      var row     = rows[i];
+                      var id   = row.id;
+                      var nama   = row.name;
+                      var latitude  = row.latitude ;
+                      var longitude = row.longitude ;
+                      centerBaru = new google.maps.LatLng(latitude, longitude);
+                      marker = new google.maps.Marker
+                    ({
+                      position: centerBaru,
+                      map: map,
+                      animation: google.maps.Animation.DROP,
+                    });
+                      console.log(latitude);
+                      console.log(longitude);
+                      markersDua.push(marker);
+                      map.setCenter(centerBaru);
+                      klikInfoWindow(id);
+                      map.setZoom(15);
+                      }
+                    }
+                  });
+                  }
+
+                  function klikInfoWindow(id)
+                  {
+                      google.maps.event.addListener(marker, "click", function(){
+                          detail_infow(id);
+
+                        });
+
+                  }
+
+                  function detail_infow(id){  //menampilkan informasi masjid
+                   $.ajax({
+                      url: server+'detail.php?cari='+id, data: "", dataType: 'json', success: function(rows)
+                        {
+                     console.log(server+'detail.php?cari='+id);
+                          console.log(id);
+                          for (var i in rows) {
+                                  var row = rows[i];
+                                  var id = row.id;
+                                  var nama = row.nama;
+                                  var alamat= row.alamat;
+                                  var fasilitas = row.fasilitas;
+                                  var buka_tutup= row.buka_tutup;
+                                  var pemilik= row.pemilik;                                 
+                                  var latitude = row.latitude;
+                                  var longitude = row.longitude;
+                                  var no_hp = row.no_hp;
+                                  var gambar= row.gambar;
+                                  centerBaru = new google.maps.LatLng(row.latitude, row.longitude);
+                                  var iconBase = 'https://maps.google.com/mapfiles/kml/shapes/';
+                                  var marker = new google.maps.Marker({
+                                      position: centerBaru,
+                                      map: map,
+                                      animation: google.maps.Animation.DROP,            
+                                      // icon: "https://cdn0.iconfinder.com/data/icons/small-n-flat/24/678111-map-marker-32.png",
+                                      title: nama
+                                    });
+                                  markersDua.push(marker);
+                                  map.setCenter(centerBaru);
+                                  map.setZoom(18);
+                                  infowindow = new google.maps.InfoWindow({
+                                    position: centerBaru,
+                                    content: "<div style='width:300px; min-height:100px;'><b><h2><center>"+nama+"</center></h2></b><center><img src='"+server+"img/"+gambar+"' style='width:100%;'></center><br><center><p>"+alamat+"</p></center><center><p>Jam Operasional :"+buka_tutup+"</p></center><center><p>Contact Person : "+no_hp+"</p></center></div>"
+                                  });
+                                  infoDua.push(infowindow);
+                                  hapusInfo();
+                                  infowindow.open(map);
+                                  }
+                                }
+                              })
+                            }
+
+                function hapusInfo() {
+                for (var i = 0; i < infoDua.length; i++) {
+                      infoDua[i].setMap(null);
+                      }
+              }
+
+
+                  </script>
 
         <!-- ALL JS FILES -->
         <script src="js/all.js"></script>
